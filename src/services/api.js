@@ -41,7 +41,8 @@ export const productsAPI = {
   createProduct: (data) => api.post('/products', data),
   createVariant: (productId, data) => api.post(`/products/${productId}/variants`, data),
   updateProduct: (id, data) => api.put(`/products/${id}`, data),
-  getVariants: (productId) => api.get(`/products/${productId}/variants`)
+  getVariants: (productId) => api.get(`/products/${productId}/variants`),
+  updateVariant: (id, data) => api.put(`/variants/${id}`, data),
 };
 
 export const ordersAPI = {

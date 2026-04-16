@@ -9,6 +9,7 @@ export default function Products() {
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showAddVariant, setShowAddVariant] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [editingVariant, setEditingVariant] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const [newProduct, setNewProduct] = useState({
@@ -41,6 +42,7 @@ export default function Products() {
   const loadVariants = async (product) => {
     setSelectedProduct(product);
     setEditingProduct(null);
+    setEditingVariant(null);
     try {
       const res = await productsAPI.getVariants(product.product_id);
       setVariants(res.data.variants);
@@ -71,6 +73,7 @@ export default function Products() {
       search_keywords: (product.search_keywords || []).join(', '),
       synonyms: (product.synonyms || []).join(', ')
     });
+    setSelectedProduct(null);
   };
 
   const saveEdit = async () => {
@@ -87,6 +90,33 @@ export default function Products() {
       loadData();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to update product');
+    }
+  };
+
+  const startEditVariant = (variant) => {
+    setEditingVariant({
+      ...variant,
+      grade: variant.attributes?.grade || '',
+      weight_kg: variant.attributes?.weight_kg || '',
+      pack_type: variant.attributes?.pack_type || 'bag'
+    });
+  };
+
+  const saveVariantEdit = async () => {
+    try {
+      await productsAPI.updateVariant(editingVariant.variant_id, {
+        brand_name: editingVariant.brand_name,
+        manufacturer: editingVariant.manufacturer,
+        attributes: {
+          grade: editingVariant.grade,
+          weight_kg: parseFloat(editingVariant.weight_kg),
+          pack_type: editingVariant.pack_type
+        }
+      });
+      setEditingVariant(null);
+      loadVariants(selectedProduct);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update variant');
     }
   };
 
@@ -115,7 +145,9 @@ export default function Products() {
     <div>
       <div style={styles.header}>
         <h2 style={styles.title}>Products</h2>
-        <button style={styles.btn} onClick={() => setShowAddProduct(true)}>+ Add Product</button>
+        <button style={styles.btn} onClick={() => setShowAddProduct(!showAddProduct)}>
+          {showAddProduct ? 'Cancel' : '+ Add Product'}
+        </button>
       </div>
 
       {showAddProduct && (
@@ -128,7 +160,7 @@ export default function Products() {
               <option key={c.category_id} value={c.category_id}>{c.name}</option>
             ))}
           </select>
-          <input style={styles.input} placeholder="Generic name"
+          <input style={styles.input} placeholder="Generic name (e.g. Cement)"
             value={newProduct.generic_name}
             onChange={e => setNewProduct({ ...newProduct, generic_name: e.target.value })} />
           <input style={styles.input} placeholder="HSN Code"
@@ -156,13 +188,17 @@ export default function Products() {
           {products.map(p => (
             <div
               key={p.product_id}
-              style={{ ...styles.productItem, background: selectedProduct?.product_id === p.product_id ? '#E6F1FB' : '#fff' }}
+              style={{
+                ...styles.productItem,
+                background: selectedProduct?.product_id === p.product_id ? '#E6F1FB' :
+                  editingProduct?.product_id === p.product_id ? '#FAEEDA' : '#fff'
+              }}
               onClick={() => loadVariants(p)}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <p style={styles.productName}>{p.generic_name}</p>
-                  <p style={styles.productCategory}>{p.category_name}</p>
+                  <p style={styles.productCategory}>{p.category_name} · HSN {p.hsn_code}</p>
                 </div>
                 <button
                   style={styles.editBtn}
@@ -211,7 +247,9 @@ export default function Products() {
             <div style={styles.variantList}>
               <div style={styles.variantHeader}>
                 <h3 style={styles.sectionTitle}>{selectedProduct.generic_name} — Variants</h3>
-                <button style={styles.btn} onClick={() => setShowAddVariant(true)}>+ Add Variant</button>
+                <button style={styles.btn} onClick={() => setShowAddVariant(!showAddVariant)}>
+                  {showAddVariant ? 'Cancel' : '+ Add Variant'}
+                </button>
               </div>
 
               {showAddVariant && (
@@ -243,13 +281,51 @@ export default function Products() {
                 </div>
               )}
 
+              {editingVariant && (
+                <div style={{ ...styles.formCard, borderLeft: '3px solid #185FA5' }}>
+                  <h4 style={{ margin: '0 0 12px', fontSize: 14, color: '#185FA5' }}>Edit Variant</h4>
+                  <input style={styles.input} placeholder="Brand name"
+                    value={editingVariant.brand_name}
+                    onChange={e => setEditingVariant({ ...editingVariant, brand_name: e.target.value })} />
+                  <input style={styles.input} placeholder="Manufacturer"
+                    value={editingVariant.manufacturer || ''}
+                    onChange={e => setEditingVariant({ ...editingVariant, manufacturer: e.target.value })} />
+                  <input style={styles.input} placeholder="Grade"
+                    value={editingVariant.grade}
+                    onChange={e => setEditingVariant({ ...editingVariant, grade: e.target.value })} />
+                  <input style={styles.input} placeholder="Weight (kg)" type="number"
+                    value={editingVariant.weight_kg}
+                    onChange={e => setEditingVariant({ ...editingVariant, weight_kg: e.target.value })} />
+                  <select style={styles.input} value={editingVariant.pack_type}
+                    onChange={e => setEditingVariant({ ...editingVariant, pack_type: e.target.value })}>
+                    <option value="bag">Bag</option>
+                    <option value="bundle">Bundle</option>
+                    <option value="piece">Piece</option>
+                    <option value="litre">Litre</option>
+                    <option value="kg">KG</option>
+                  </select>
+                  <div style={styles.formActions}>
+                    <button style={styles.btn} onClick={saveVariantEdit}>Save Changes</button>
+                    <button style={styles.cancelBtn} onClick={() => setEditingVariant(null)}>Cancel</button>
+                  </div>
+                </div>
+              )}
+
               {variants.map(v => (
                 <div key={v.variant_id} style={styles.variantItem}>
-                  <p style={styles.variantBrand}>{v.brand_name}</p>
-                  <p style={styles.variantAttr}>
-                    {Object.entries(v.attributes || {}).map(([k, val]) =>
-                      `${k}: ${val}`).join(' · ')}
-                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <p style={styles.variantBrand}>{v.brand_name}</p>
+                      <p style={styles.variantAttr}>
+                        {Object.entries(v.attributes || {}).map(([k, val]) =>
+                          `${k}: ${val}`).join(' · ')}
+                      </p>
+                      <p style={styles.variantMfg}>{v.manufacturer}</p>
+                    </div>
+                    <button style={styles.editBtn} onClick={() => startEditVariant(v)}>
+                      Edit
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -264,21 +340,22 @@ const styles = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   title: { fontSize: 22, fontWeight: 600, color: '#333', margin: 0 },
   btn: { background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
-  editBtn: { background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 600 },
+  editBtn: { background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 600, flexShrink: 0 },
   cancelBtn: { background: '#f5f5f5', color: '#333', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 14, cursor: 'pointer' },
-  formCard: { background: '#fff', borderRadius: 12, padding: 20, marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
+  formCard: { background: '#fff', borderRadius: 12, padding: 20, marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
   formTitle: { fontSize: 16, fontWeight: 600, margin: '0 0 16px' },
   formActions: { display: 'flex', gap: 8, marginTop: 12 },
   input: { display: 'block', width: '100%', border: '1px solid #ddd', borderRadius: 8, padding: '10px 12px', fontSize: 14, marginBottom: 10, boxSizing: 'border-box', outline: 'none' },
   grid: { display: 'grid', gridTemplateColumns: '300px 1fr', gap: 16 },
-  productList: { background: '#fff', borderRadius: 12, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
+  productList: { background: '#fff', borderRadius: 12, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', alignSelf: 'start' },
   sectionTitle: { fontSize: 15, fontWeight: 600, color: '#333', margin: '0 0 12px' },
-  productItem: { padding: 12, borderRadius: 8, cursor: 'pointer', marginBottom: 4 },
+  productItem: { padding: 12, borderRadius: 8, cursor: 'pointer', marginBottom: 4, transition: 'background 0.15s' },
   productName: { fontSize: 14, fontWeight: 500, color: '#333', margin: '0 0 2px' },
-  productCategory: { fontSize: 12, color: '#888', margin: 0 },
+  productCategory: { fontSize: 11, color: '#888', margin: 0 },
   variantList: { background: '#fff', borderRadius: 12, padding: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
   variantHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   variantItem: { padding: 12, borderRadius: 8, background: '#f9f9f9', marginBottom: 8 },
   variantBrand: { fontSize: 14, fontWeight: 600, color: '#185FA5', margin: '0 0 4px' },
-  variantAttr: { fontSize: 12, color: '#666', margin: 0 }
+  variantAttr: { fontSize: 12, color: '#666', margin: '0 0 2px' },
+  variantMfg: { fontSize: 11, color: '#999', margin: 0 }
 };

@@ -63,12 +63,15 @@ export default function App() {
 }
 
 const styles = {
-  container: { display: 'flex', minHeight: '100vh', fontFamily: 'system-ui, sans-serif' },
-  sidebar: { width: 220, background: '#185FA5', display: 'flex', flexDirection: 'column', padding: '24px 0' },
+  container: { display: 'flex', height: '100vh', width: '100vw', fontFamily: 'system-ui, sans-serif', overflow: 'hidden' },
+  // container: { display: 'flex', minHeight: '100vh', fontFamily: 'system-ui, sans-serif' },
+  sidebar: { width: 220, background: '#185FA5', display: 'flex', flexDirection: 'column', padding: '24px 0', height: '100vh', flexShrink: 0 },
+  // sidebar: { width: 220, background: '#185FA5', display: 'flex', flexDirection: 'column', padding: '24px 0' },
   logo: { fontSize: 22, fontWeight: 'bold', color: '#fff', padding: '0 20px', marginBottom: 4 },
   adminLabel: { fontSize: 11, color: '#85B7EB', padding: '0 20px', marginBottom: 24 },
   navLink: { display: 'block', color: '#fff', textDecoration: 'none', padding: '10px 20px', fontSize: 14 },
-  main: { flex: 1, background: '#f5f5f5', padding: 24, overflowY: 'auto' },
+  // main: { flex: 1, background: '#f5f5f5', padding: 24, overflowY: 'auto' },
+  main: { flex: 1, background: '#f5f5f5', padding: 24, overflowY: 'auto', height: '100vh' },
   userBox: { marginTop: 'auto', padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.1)' },
   userName: { color: '#B5D4F4', fontSize: 13, margin: '0 0 8px' },
   logoutBtn: { background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, cursor: 'pointer', width: '100%' }
