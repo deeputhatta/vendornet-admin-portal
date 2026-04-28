@@ -11,6 +11,10 @@ import Commission from './pages/Commission';
 import Listings from './pages/Listings';
 import Products from './pages/Products';
 import ProductDetail from './pages/ProductDetail';
+import Categories from './pages/Categories';
+import Approvals from './pages/Approvals';
+import ActivityLogs from './pages/ActivityLogs';
+import Analytics from './pages/Analytics';
 import './index.css';
 
 function ProtectedRoute({ children }) {
@@ -29,17 +33,21 @@ function PublicRoute({ children }) {
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-      <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
-      <Route path="/users/:id" element={<ProtectedRoute><UserDetail /></ProtectedRoute>} />
-      <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
-      <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
-      <Route path="/commission" element={<ProtectedRoute><Commission /></ProtectedRoute>} />
-      <Route path="/listings" element={<ProtectedRoute><Listings /></ProtectedRoute>} />
-      <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
-      <Route path="/products/:id" element={<ProtectedRoute><ProductDetail /></ProtectedRoute>} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/login"         element={<PublicRoute><Login /></PublicRoute>} />
+      <Route path="/"              element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/users"         element={<ProtectedRoute><Users /></ProtectedRoute>} />
+      <Route path="/users/:id"     element={<ProtectedRoute><UserDetail /></ProtectedRoute>} />
+      <Route path="/orders"        element={<ProtectedRoute><Orders /></ProtectedRoute>} />
+      <Route path="/orders/:id"    element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
+      <Route path="/approvals"     element={<ProtectedRoute><Approvals /></ProtectedRoute>} />
+      <Route path="/commission"    element={<ProtectedRoute><Commission /></ProtectedRoute>} />
+      <Route path="/listings"      element={<ProtectedRoute><Listings /></ProtectedRoute>} />
+      <Route path="/products"      element={<ProtectedRoute><Products /></ProtectedRoute>} />
+      <Route path="/products/:id"  element={<ProtectedRoute><ProductDetail /></ProtectedRoute>} />
+      <Route path="/categories"    element={<ProtectedRoute><Categories /></ProtectedRoute>} />
+      <Route path="/activity-logs" element={<ProtectedRoute><ActivityLogs /></ProtectedRoute>} />
+      <Route path="/analytics"     element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+      <Route path="*"              element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

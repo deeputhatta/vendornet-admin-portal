@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import api from '../api';
 import { Users, ShoppingBag, TrendingUp, DollarSign, Package, Store } from 'lucide-react';
@@ -12,6 +13,7 @@ const STATUS_COLORS = {
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     Promise.all([
@@ -27,14 +29,12 @@ export default function Dashboard() {
       const wholesalers = users.filter(u => u.role.includes('wholesaler'));
       const totalRevenue = orders.reduce((s, o) => s + parseFloat(o.total_amount || 0), 0);
 
-      // Orders by status
       const statusCount = {};
       orders.forEach(o => {
         statusCount[o.overall_status || 'pending'] = (statusCount[o.overall_status || 'pending'] || 0) + 1;
       });
       const statusData = Object.entries(statusCount).map(([name, value]) => ({ name, value }));
 
-      // Orders last 7 days
       const dayMap = {};
       const today = new Date();
       for (let i = 6; i >= 0; i--) {
@@ -57,12 +57,12 @@ export default function Dashboard() {
   if (loading) return <Loader />;
 
   const stats = [
-    { label: 'Total Users', value: data.users.length, icon: Users, color: '#185FA5', bg: '#e6f1fb' },
-    { label: 'Retailers', value: data.retailers.length, icon: Store, color: '#1D9E75', bg: '#e1f5ee' },
-    { label: 'Wholesalers', value: data.wholesalers.length, icon: Package, color: '#F2C94C', bg: '#faeeda' },
-    { label: 'Total Orders', value: data.orders.length, icon: ShoppingBag, color: '#185FA5', bg: '#e6f1fb' },
-    { label: 'Revenue', value: `₹${(data.totalRevenue/1000).toFixed(1)}K`, icon: TrendingUp, color: '#1D9E75', bg: '#e1f5ee' },
-    { label: 'Commission', value: `₹${parseFloat(data.commission.total_commission).toLocaleString('en-IN')}`, icon: DollarSign, color: '#F2C94C', bg: '#faeeda' },
+    { label: 'Total Users',  value: data.users.length,                                                              icon: Users,      color: '#185FA5', bg: '#e6f1fb', route: '/users' },
+    { label: 'Retailers',    value: data.retailers.length,                                                           icon: Store,      color: '#1D9E75', bg: '#e1f5ee', route: '/users', state: { roleFilter: 'retailer_admin' } },
+    { label: 'Wholesalers',  value: data.wholesalers.length,                                                         icon: Package,    color: '#F2C94C', bg: '#faeeda', route: '/users', state: { roleFilter: 'wholesaler_admin' } },
+    { label: 'Total Orders', value: data.orders.length,                                                              icon: ShoppingBag,color: '#185FA5', bg: '#e6f1fb', route: '/orders' },
+    { label: 'Revenue',      value: `₹${(data.totalRevenue/1000).toFixed(1)}K`,                                     icon: TrendingUp, color: '#1D9E75', bg: '#e1f5ee', route: '/analytics' },
+    { label: 'Commission',   value: `₹${parseFloat(data.commission.total_commission).toLocaleString('en-IN')}`,     icon: DollarSign, color: '#F2C94C', bg: '#faeeda', route: '/commission' },
   ];
 
   return (
@@ -75,7 +75,10 @@ export default function Dashboard() {
       {/* Stats grid */}
       <div style={styles.statsGrid}>
         {stats.map((s, i) => (
-          <div key={i} style={styles.statCard}>
+          <div key={i} style={styles.statCard} onClick={() => navigate(s.route, { state: s.state || {} })}
+            onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(24,95,165,0.12)'}
+            onMouseLeave={e => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'}
+          >
             <div style={{ ...styles.statIcon, background: s.bg }}>
               <s.icon size={20} color={s.color} />
             </div>
@@ -89,7 +92,6 @@ export default function Dashboard() {
 
       {/* Charts */}
       <div style={styles.chartsRow}>
-        {/* Orders this week */}
         <div style={styles.chartCard}>
           <h3 style={styles.chartTitle}>Orders — last 7 days</h3>
           <ResponsiveContainer width="100%" height={200}>
@@ -102,7 +104,6 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
 
-        {/* Order status breakdown */}
         <div style={styles.chartCard}>
           <h3 style={styles.chartTitle}>Orders by status</h3>
           <ResponsiveContainer width="100%" height={200}>
@@ -134,7 +135,11 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {data.orders.slice(0, 8).map(o => (
-                <tr key={o.order_id} style={styles.tr}>
+                <tr key={o.order_id} style={{ ...styles.tr, cursor: 'pointer' }}
+                  onClick={() => navigate(`/orders/${o.order_id}`)}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
                   <td style={styles.td}><span style={styles.orderId}>#{o.order_id.slice(0,8).toUpperCase()}</span></td>
                   <td style={styles.td}>{o.retailer_name}</td>
                   <td style={styles.td}>{o.retailer_mobile}</td>
@@ -163,7 +168,7 @@ const styles = {
   pageTitle: { fontSize: 24, fontWeight: 700, color: '#0f172a' },
   pageSub: { fontSize: 14, color: '#64748b', marginTop: 2 },
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 24 },
-  statCard: { background: '#fff', borderRadius: 14, padding: '18px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' },
+  statCard: { background: '#fff', borderRadius: 14, padding: '18px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', cursor: 'pointer', transition: 'box-shadow 0.2s' },
   statIcon: { width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   statValue: { fontSize: 22, fontWeight: 700, color: '#0f172a', lineHeight: 1.2 },
   statLabel: { fontSize: 12, color: '#64748b', marginTop: 2 },

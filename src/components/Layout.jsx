@@ -1,18 +1,22 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import {
-  LayoutDashboard, Users, ShoppingBag,
-  DollarSign, LogOut, Menu, X, Package, FlaskConical
+  LayoutDashboard, Users, ShoppingBag, CheckSquare,
+  FlaskConical, Package, Tag, Activity,
+  DollarSign, LogOut, Menu, X
 } from 'lucide-react';
 import { useState } from 'react';
 
 const NAV = [
-  { to: '/',          icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/users',     icon: Users,           label: 'Users' },
-  { to: '/orders',    icon: ShoppingBag,     label: 'Orders' },
-  { to: '/products',   icon: FlaskConical,    label: 'Products' },
-  { to: '/listings',   icon: Package,         label: 'Listings' },
-  { to: '/commission', icon: DollarSign,      label: 'Commission' },
+  { to: '/',              icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/users',         icon: Users,           label: 'Users' },
+  { to: '/orders',        icon: ShoppingBag,     label: 'Orders' },
+  { to: '/approvals',     icon: CheckSquare,     label: 'Approvals' },
+  { to: '/products',      icon: FlaskConical,    label: 'Products' },
+  { to: '/listings',      icon: Package,         label: 'Listings' },
+  { to: '/categories',    icon: Tag,             label: 'Categories' },
+  { to: '/activity-logs', icon: Activity,        label: 'Activity Logs' },
+  { to: '/commission',    icon: DollarSign,      label: 'Commission' },
 ];
 
 export default function Layout({ children }) {
@@ -24,12 +28,9 @@ export default function Layout({ children }) {
 
   return (
     <div style={styles.root}>
-      {/* Mobile overlay */}
       {open && <div style={styles.overlay} onClick={() => setOpen(false)} />}
 
-      {/* Sidebar */}
       <aside style={{ ...styles.sidebar, left: open ? 0 : undefined }}>
-        {/* Logo */}
         <div style={styles.logo}>
           <svg viewBox="0 0 32 32" width="32" height="32">
             <circle cx="16" cy="16" r="16" fill="#185FA5"/>
@@ -53,7 +54,6 @@ export default function Layout({ children }) {
           </div>
         </div>
 
-        {/* Nav */}
         <nav style={styles.nav}>
           {NAV.map(({ to, icon: Icon, label }) => (
             <NavLink
@@ -74,7 +74,6 @@ export default function Layout({ children }) {
           ))}
         </nav>
 
-        {/* User info */}
         <div style={styles.userBox}>
           <div style={styles.avatar}>{user?.name?.charAt(0)}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -87,16 +86,13 @@ export default function Layout({ children }) {
         </div>
       </aside>
 
-      {/* Main */}
       <div style={styles.main}>
-        {/* Mobile header */}
         <div style={styles.mobileHeader}>
           <button style={styles.menuBtn} onClick={() => setOpen(true)}>
             <Menu size={22} />
           </button>
           <span style={styles.mobileTitle}>VendorNet Admin</span>
         </div>
-
         <main style={styles.content}>
           {children}
         </main>
@@ -107,16 +103,11 @@ export default function Layout({ children }) {
 
 const styles = {
   root: { display: 'flex', minHeight: '100vh' },
-  overlay: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-    zIndex: 99, display: 'none',
-    '@media(max-width:768px)': { display: 'block' },
-  },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 99 },
   sidebar: {
     width: 240, background: '#fff', borderRight: '1px solid #e2e8f0',
     display: 'flex', flexDirection: 'column', position: 'fixed',
-    top: 0, bottom: 0, left: 0, zIndex: 100,
-    transition: 'left 0.25s ease',
+    top: 0, bottom: 0, left: 0, zIndex: 100, transition: 'left 0.25s ease',
   },
   logo: {
     display: 'flex', alignItems: 'center', gap: 10,
@@ -124,7 +115,7 @@ const styles = {
   },
   logoText: { fontSize: 16, fontWeight: 700, color: '#0f172a', lineHeight: 1.2 },
   logoSub: { fontSize: 11, color: '#185FA5', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' },
-  nav: { flex: 1, padding: '12px 12px', display: 'flex', flexDirection: 'column', gap: 2 },
+  nav: { flex: 1, padding: '12px 12px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' },
   navItem: {
     display: 'flex', alignItems: 'center', gap: 10,
     padding: '10px 12px', borderRadius: 10, fontSize: 14,

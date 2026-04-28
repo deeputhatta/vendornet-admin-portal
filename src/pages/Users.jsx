@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../api';
 import { Search, UserCheck, UserX, Phone, Shield, Plus, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const ROLE_CONFIG = {
   retailer_admin:    { label: 'Retailer',         color: '#185FA5', bg: '#e6f1fb' },
@@ -16,15 +16,23 @@ export default function Users() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
   const [toggling, setToggling] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const [roleFilter, setRoleFilter] = useState(location.state?.roleFilter || 'all');
   const [showAddAdmin, setShowAddAdmin] = useState(false);
   const [newAdmin, setNewAdmin] = useState({ name: '', mobile: '' });
   const [addingAdmin, setAddingAdmin] = useState(false);
   const [addError, setAddError] = useState('');
 
   useEffect(() => { loadUsers(); }, []);
+
+  // Update filter if navigated with state
+  useEffect(() => {
+    if (location.state?.roleFilter) {
+      setRoleFilter(location.state.roleFilter);
+    }
+  }, [location.state]);
 
   const loadUsers = async () => {
     try {

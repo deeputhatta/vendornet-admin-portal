@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ChevronDown } from 'lucide-react';
 
 const STATUS_CONFIG = {
   pending:          { label: 'Pending',    color: '#b45309', bg: '#fef3c7' },
@@ -16,26 +16,55 @@ const STATUS_CONFIG = {
   ordered:          { label: 'Ordered',    color: '#185FA5', bg: '#e6f1fb' },
 };
 
+const ALLOWED_STATUSES = ['pending', 'accepted', 'packing', 'dispatched', 'delivered', 'completed', 'rejected'];
+
 export default function OrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(null);
+  const [openDropdown, setOpenDropdown] = useState(null);
 
   useEffect(() => {
+    fetchOrder();
+  }, [id]);
+
+  const fetchOrder = () => {
     api.get(`/admin/orders/${id}`)
       .then(res => setData(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [id]);
+  };
+
+  const updateStatus = async (subOrderId, status) => {
+    setUpdating(subOrderId);
+    setOpenDropdown(null);
+    try {
+      const res = await api.put(`/admin/orders/${subOrderId}/status`, { status });
+      // Update local state
+      setData(prev => ({
+        ...prev,
+        order: { ...prev.order, overall_status: res.data.overall_status },
+        sub_orders: prev.sub_orders.map(s =>
+          s.sub_order_id === subOrderId ? { ...s, status } : s
+        ),
+      }));
+    } catch (e) {
+      alert(e.response?.data?.error || 'Failed to update status');
+    } finally {
+      setUpdating(null);
+    }
+  };
 
   if (loading) return <Loader />;
   if (!data) return <div style={{ padding: 32, color: '#94a3b8' }}>Order not found</div>;
 
   const { order, sub_orders } = data;
+  const oc = STATUS_CONFIG[order.overall_status] || { label: order.overall_status, color: '#64748b', bg: '#f1f5f9' };
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" onClick={() => setOpenDropdown(null)}>
       <button style={styles.backBtn} onClick={() => navigate('/orders')}>
         <ArrowLeft size={16} /> Back to Orders
       </button>
@@ -50,6 +79,11 @@ export default function OrderDetail() {
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={styles.orderAmount}>₹{parseFloat(order.total_amount).toLocaleString('en-IN')}</div>
+          <div style={{ marginTop: 6 }}>
+            <span style={{ ...styles.badge, background: 'rgba(255,255,255,0.2)', color: '#fff', fontSize: 12 }}>
+              {oc.label}
+            </span>
+          </div>
           <div style={styles.orderMeta}>{sub_orders.length} supplier{sub_orders.length > 1 ? 's' : ''}</div>
         </div>
       </div>
@@ -66,8 +100,11 @@ export default function OrderDetail() {
       </div>
 
       {/* Sub orders */}
-      {sub_orders.map((sub, si) => {
+      {sub_orders.map((sub) => {
         const sc = STATUS_CONFIG[sub.status] || { label: sub.status, color: '#64748b', bg: '#f1f5f9' };
+        const isUpdating = updating === sub.sub_order_id;
+        const isOpen = openDropdown === sub.sub_order_id;
+
         return (
           <div key={sub.sub_order_id} style={styles.subCard}>
             {/* Wholesaler header */}
@@ -77,9 +114,50 @@ export default function OrderDetail() {
                 <div style={styles.wsName}>{sub.wholesaler_name}</div>
                 <div style={styles.wsMobile}>{sub.wholesaler_mobile}</div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ ...styles.badge, background: sc.bg, color: sc.color }}>{sc.label}</span>
-                <div style={styles.subAmount}>₹{parseFloat(sub.total_amount).toLocaleString('en-IN')}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={styles.subAmount}>₹{parseFloat(sub.total_amount).toLocaleString('en-IN')}</div>
+                </div>
+                {/* Status Dropdown */}
+                <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                  <button
+                    onClick={() => setOpenDropdown(isOpen ? null : sub.sub_order_id)}
+                    disabled={isUpdating}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '6px 12px', borderRadius: 8, border: 'none',
+                      background: sc.bg, color: sc.color,
+                      fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    {isUpdating ? 'Updating...' : sc.label}
+                    <ChevronDown size={13} />
+                  </button>
+                  {isOpen && (
+                    <div style={styles.dropdown}>
+                      <div style={styles.dropdownTitle}>Update Status</div>
+                      {ALLOWED_STATUSES.map(s => {
+                        const sc2 = STATUS_CONFIG[s] || { label: s, color: '#64748b', bg: '#f1f5f9' };
+                        return (
+                          <button
+                            key={s}
+                            onClick={() => updateStatus(sub.sub_order_id, s)}
+                            style={{
+                              ...styles.dropdownItem,
+                              background: sub.status === s ? sc2.bg : 'transparent',
+                              color: sub.status === s ? sc2.color : '#334155',
+                              fontWeight: sub.status === s ? 700 : 400,
+                            }}
+                          >
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: sc2.color, display: 'inline-block', flexShrink: 0 }} />
+                            {sc2.label}
+                            {sub.status === s && ' ✓'}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -146,19 +224,30 @@ const styles = {
   orderId: { fontSize: 20, fontWeight: 800, color: '#fff', fontFamily: 'DM Mono, monospace', marginBottom: 4 },
   orderDate: { fontSize: 13, color: 'rgba(255,255,255,0.7)' },
   orderAmount: { fontSize: 28, fontWeight: 800, color: '#fff' },
-  orderMeta: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  orderMeta: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
   retailerCard: { background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', padding: '16px 20px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 14 },
   retailerAvatar: { width: 40, height: 40, borderRadius: '50%', background: '#e6f1fb', color: '#185FA5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, flexShrink: 0 },
   retailerName: { fontSize: 15, fontWeight: 700, color: '#0f172a' },
   retailerMeta: { fontSize: 12, color: '#64748b', marginTop: 2 },
   retailerLabel: { marginLeft: 'auto', fontSize: 11, fontWeight: 600, color: '#185FA5', background: '#e6f1fb', padding: '3px 10px', borderRadius: 20 },
-  subCard: { background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', marginBottom: 14, overflow: 'hidden' },
+  subCard: { background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', marginBottom: 14, overflow: 'visible' },
   subHeader: { display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: '1px solid #f1f5f9' },
   wsAvatar: { width: 36, height: 36, borderRadius: '50%', background: '#e1f5ee', color: '#1D9E75', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, flexShrink: 0 },
   wsName: { fontSize: 14, fontWeight: 700, color: '#0f172a' },
   wsMobile: { fontSize: 12, color: '#64748b' },
-  subAmount: { fontSize: 14, fontWeight: 700, color: '#185FA5', marginTop: 4 },
+  subAmount: { fontSize: 14, fontWeight: 700, color: '#185FA5' },
   badge: { display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600 },
+  dropdown: {
+    position: 'absolute', right: 0, top: '110%', zIndex: 300,
+    background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: 160, overflow: 'hidden',
+  },
+  dropdownTitle: { padding: '10px 14px 6px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' },
+  dropdownItem: {
+    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+    padding: '9px 14px', border: 'none', cursor: 'pointer',
+    fontSize: 13, textAlign: 'left',
+  },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: { textAlign: 'left', padding: '10px 16px', fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' },
   tr: { borderBottom: '1px solid #f8fafc' },
