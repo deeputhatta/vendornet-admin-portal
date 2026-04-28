@@ -4,12 +4,55 @@ import { Search, Package, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const PAGE_SIZE = 200;
 
+function Pagination({ currentPage, totalPages, onPage, loading }) {
+  if (totalPages <= 1) return null;
+
+  const getPages = () => {
+    const pages = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push('...');
+      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+        pages.push(i);
+      }
+      if (currentPage < totalPages - 2) pages.push('...');
+      pages.push(totalPages);
+    }
+    return pages;
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <button onClick={() => onPage(currentPage - 1)} disabled={currentPage === 1 || loading}
+        style={{ ...styles.pgBtn, opacity: currentPage === 1 ? 0.4 : 1 }}>
+        <ChevronLeft size={14} />
+      </button>
+      {getPages().map((p, i) =>
+        p === '...' ? (
+          <span key={`dots-${i}`} style={{ padding: '0 4px', color: '#94a3b8', fontSize: 13 }}>…</span>
+        ) : (
+          <button key={p} onClick={() => onPage(p)} disabled={loading}
+            style={{ ...styles.pgBtn, background: currentPage === p ? '#185FA5' : '#fff', color: currentPage === p ? '#fff' : '#475569', borderColor: currentPage === p ? '#185FA5' : '#e2e8f0', fontWeight: currentPage === p ? 700 : 400, minWidth: 34 }}>
+            {p}
+          </button>
+        )
+      )}
+      <button onClick={() => onPage(currentPage + 1)} disabled={currentPage === totalPages || loading}
+        style={{ ...styles.pgBtn, opacity: currentPage === totalPages ? 0.4 : 1 }}>
+        <ChevronRight size={14} />
+      </button>
+    </div>
+  );
+}
+
 export default function Listings() {
   const [wholesalers, setWholesalers] = useState([]);
   const [selectedWholesaler, setSelectedWholesaler] = useState(null);
   const [listings, setListings] = useState([]);
   const [total, setTotal] = useState(0);
-  const [offset, setOffset] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [loadingWholesalers, setLoadingWholesalers] = useState(true);
   const [search, setSearch] = useState('');
@@ -18,15 +61,22 @@ export default function Listings() {
 
   useEffect(() => { loadWholesalers(); }, []);
 
-  // Debounced backend search — reset to page 1
+  // Debounced search — backend call
   useEffect(() => {
     if (!selectedWholesaler) return;
     const timer = setTimeout(() => {
-      setOffset(0);
-      loadListings(selectedWholesaler.user_id, search, 0);
+      setCurrentPage(1);
+      loadListings(selectedWholesaler.user_id, search, filter, 1);
     }, 500);
     return () => clearTimeout(timer);
   }, [search]);
+
+  // Filter change — immediate backend call
+  useEffect(() => {
+    if (!selectedWholesaler) return;
+    setCurrentPage(1);
+    loadListings(selectedWholesaler.user_id, search, filter, 1);
+  }, [filter]);
 
   const loadWholesalers = async () => {
     try {
@@ -37,12 +87,14 @@ export default function Listings() {
     finally { setLoadingWholesalers(false); }
   };
 
-  const loadListings = async (wholesalerId, searchTerm = '', off = 0) => {
+  const loadListings = async (wholesalerId, searchTerm = '', status = 'all', page = 1) => {
     setLoading(true);
     setListings([]);
     try {
-      const params = new URLSearchParams({ wholesaler_id: wholesalerId, offset: off });
+      const offset = (page - 1) * PAGE_SIZE;
+      const params = new URLSearchParams({ wholesaler_id: wholesalerId, offset });
       if (searchTerm) params.append('search', searchTerm);
+      if (status !== 'all') params.append('status', status);
       const res = await api.get(`/admin/listings?${params}`);
       setListings(res.data.listings || []);
       setTotal(res.data.total || 0);
@@ -54,20 +106,14 @@ export default function Listings() {
     setSelectedWholesaler(ws);
     setSearch('');
     setFilter('all');
-    setOffset(0);
-    loadListings(ws.user_id, '', 0);
+    setCurrentPage(1);
+    loadListings(ws.user_id, '', 'all', 1);
   };
 
-  const goNext = () => {
-    const newOffset = offset + PAGE_SIZE;
-    setOffset(newOffset);
-    loadListings(selectedWholesaler.user_id, search, newOffset);
-  };
-
-  const goPrev = () => {
-    const newOffset = Math.max(0, offset - PAGE_SIZE);
-    setOffset(newOffset);
-    loadListings(selectedWholesaler.user_id, search, newOffset);
+  const goToPage = (page) => {
+    setCurrentPage(page);
+    loadListings(selectedWholesaler.user_id, search, filter, page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const toggleListing = async (id, e) => {
@@ -80,14 +126,8 @@ export default function Listings() {
     finally { setToggling(null); }
   };
 
-  const filtered = listings.filter(l =>
-    filter === 'all' || (filter === 'active' ? l.is_active : !l.is_active)
-  );
-
-  const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
   const totalPages = Math.ceil(total / PAGE_SIZE);
-  const hasPrev = offset > 0;
-  const hasNext = offset + PAGE_SIZE < total;
+  const offset = (currentPage - 1) * PAGE_SIZE;
 
   if (loadingWholesalers) return <Loader />;
 
@@ -103,15 +143,8 @@ export default function Listings() {
       {/* Wholesaler Selector */}
       <div style={styles.wholesalerGrid}>
         {wholesalers.map(ws => (
-          <div
-            key={ws.user_id}
-            onClick={() => selectWholesaler(ws)}
-            style={{
-              ...styles.wholesalerCard,
-              border: selectedWholesaler?.user_id === ws.user_id ? '2px solid #185FA5' : '1px solid #e2e8f0',
-              background: selectedWholesaler?.user_id === ws.user_id ? '#f0f7ff' : '#fff',
-            }}
-          >
+          <div key={ws.user_id} onClick={() => selectWholesaler(ws)}
+            style={{ ...styles.wholesalerCard, border: selectedWholesaler?.user_id === ws.user_id ? '2px solid #185FA5' : '1px solid #e2e8f0', background: selectedWholesaler?.user_id === ws.user_id ? '#f0f7ff' : '#fff' }}>
             <div style={{ ...styles.wsAvatar, background: selectedWholesaler?.user_id === ws.user_id ? '#185FA5' : '#e6f1fb', color: selectedWholesaler?.user_id === ws.user_id ? '#fff' : '#185FA5' }}>
               {ws.name?.charAt(0)}
             </div>
@@ -126,55 +159,29 @@ export default function Listings() {
         ))}
       </div>
 
-      {/* Listings */}
       {selectedWholesaler && (
         <>
+          {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, marginTop: 8, flexWrap: 'wrap', gap: 8 }}>
             <div>
               <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{selectedWholesaler.name}</span>
               <span style={{ fontSize: 13, color: '#64748b', marginLeft: 8 }}>
-                {total} total listings · showing {offset + 1}–{Math.min(offset + PAGE_SIZE, total)}
+                {total} listings · page {currentPage} of {totalPages || 1}
               </span>
             </div>
-            {/* Pagination controls */}
-            {totalPages > 1 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button onClick={goPrev} disabled={!hasPrev || loading} style={{ ...styles.pageBtn, opacity: !hasPrev ? 0.4 : 1 }}>
-                  <ChevronLeft size={16} /> Prev
-                </button>
-                <span style={{ fontSize: 13, color: '#64748b', padding: '0 4px' }}>
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button onClick={goNext} disabled={!hasNext || loading} style={{ ...styles.pageBtn, opacity: !hasNext ? 0.4 : 1 }}>
-                  Next <ChevronRight size={16} />
-                </button>
-              </div>
-            )}
+            <Pagination currentPage={currentPage} totalPages={totalPages} onPage={goToPage} loading={loading} />
           </div>
 
           {/* Filters */}
           <div style={styles.filters}>
             <div style={styles.searchWrap}>
               <Search size={16} color="#94a3b8" style={{ flexShrink: 0 }} />
-              <input
-                style={styles.searchInput}
-                placeholder="Search product name..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-              {search && (
-                <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
-              )}
+              <input style={styles.searchInput} placeholder="Search product name..." value={search} onChange={e => setSearch(e.target.value)} />
+              {search && <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>}
             </div>
             <div style={styles.tabFilters}>
               {[['all', 'All'], ['active', 'Active'], ['inactive', 'Inactive']].map(([key, label]) => (
-                <button
-                  key={key}
-                  style={{ ...styles.tabBtn, ...(filter === key ? styles.tabBtnActive : {}) }}
-                  onClick={() => setFilter(key)}
-                >
-                  {label}
-                </button>
+                <button key={key} style={{ ...styles.tabBtn, ...(filter === key ? styles.tabBtnActive : {}) }} onClick={() => setFilter(key)}>{label}</button>
               ))}
             </div>
           </div>
@@ -198,7 +205,7 @@ export default function Listings() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.map((l, i) => (
+                      {listings.map((l, i) => (
                         <tr key={l.listing_id} style={styles.tr}>
                           <td style={{ ...styles.td, color: '#94a3b8', fontSize: 11 }}>{offset + i + 1}</td>
                           <td style={styles.td}>
@@ -211,14 +218,10 @@ export default function Listings() {
                           <td style={styles.td}>{l.attributes?.pack_size || l.attributes?.size || '—'}</td>
                           <td style={styles.td}>₹{parseFloat(l.price).toLocaleString('en-IN')}</td>
                           <td style={styles.td}>
-                            {l.offer_price ? (
-                              <span style={{ color: '#1D9E75', fontWeight: 600 }}>₹{parseFloat(l.offer_price).toLocaleString('en-IN')}</span>
-                            ) : <span style={{ color: '#94a3b8' }}>—</span>}
+                            {l.offer_price ? <span style={{ color: '#1D9E75', fontWeight: 600 }}>₹{parseFloat(l.offer_price).toLocaleString('en-IN')}</span> : <span style={{ color: '#94a3b8' }}>—</span>}
                           </td>
                           <td style={styles.td}>
-                            <span style={{ color: l.stock_qty < 10 ? '#dc2626' : '#0f172a', fontWeight: l.stock_qty < 10 ? 600 : 400 }}>
-                              {l.stock_qty}
-                            </span>
+                            <span style={{ color: l.stock_qty < 10 ? '#dc2626' : '#0f172a', fontWeight: l.stock_qty < 10 ? 600 : 400 }}>{l.stock_qty}</span>
                           </td>
                           <td style={styles.td}>{l.min_order_qty}</td>
                           <td style={styles.td}>{l.delivery_days}d</td>
@@ -228,11 +231,8 @@ export default function Listings() {
                             </span>
                           </td>
                           <td style={styles.td}>
-                            <button
-                              style={{ ...styles.toggleBtn, ...(l.is_active ? styles.deactivateBtn : styles.activateBtn) }}
-                              onClick={(e) => toggleListing(l.listing_id, e)}
-                              disabled={toggling === l.listing_id}
-                            >
+                            <button style={{ ...styles.toggleBtn, ...(l.is_active ? styles.deactivateBtn : styles.activateBtn) }}
+                              onClick={(e) => toggleListing(l.listing_id, e)} disabled={toggling === l.listing_id}>
                               {toggling === l.listing_id ? '...' : l.is_active ? 'Deactivate' : 'Activate'}
                             </button>
                           </td>
@@ -240,25 +240,16 @@ export default function Listings() {
                       ))}
                     </tbody>
                   </table>
-                  {filtered.length === 0 && (
-                    <div style={styles.empty}>No listings found</div>
-                  )}
+                  {listings.length === 0 && <div style={styles.empty}>No listings found</div>}
                 </div>
 
                 {/* Bottom pagination */}
                 {totalPages > 1 && (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderTop: '1px solid #e2e8f0' }}>
                     <span style={{ fontSize: 13, color: '#64748b' }}>
                       Showing {offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total} listings
                     </span>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={goPrev} disabled={!hasPrev || loading} style={{ ...styles.pageBtn, opacity: !hasPrev ? 0.4 : 1 }}>
-                        <ChevronLeft size={16} /> Prev
-                      </button>
-                      <button onClick={goNext} disabled={!hasNext || loading} style={{ ...styles.pageBtn, opacity: !hasNext ? 0.4 : 1 }}>
-                        Next <ChevronRight size={16} />
-                      </button>
-                    </div>
+                    <Pagination currentPage={currentPage} totalPages={totalPages} onPage={goToPage} loading={loading} />
                   </div>
                 )}
               </>
@@ -297,7 +288,7 @@ const styles = {
   tabFilters: { display: 'flex', gap: 8 },
   tabBtn: { padding: '6px 16px', borderRadius: 20, border: '1px solid #e2e8f0', background: '#fff', fontSize: 12, fontWeight: 500, color: '#64748b', cursor: 'pointer' },
   tabBtnActive: { background: '#185FA5', color: '#fff', borderColor: '#185FA5' },
-  pageBtn: { display: 'flex', alignItems: 'center', gap: 4, padding: '7px 14px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 500, color: '#475569', cursor: 'pointer' },
+  pgBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', fontSize: 13, color: '#475569', cursor: 'pointer', minWidth: 34 },
   tableCard: { background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden' },
   tableWrap: { overflowX: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse' },
