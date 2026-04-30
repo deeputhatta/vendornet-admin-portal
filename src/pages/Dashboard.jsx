@@ -10,6 +10,18 @@ const STATUS_COLORS = {
   invoice_uploaded: '#30D158', rejected: '#FF453A', auto_cancelled: '#FF9500',
 };
 
+const STATUS_LABELS = {
+  pending: 'Pending',
+  accepted: 'Accepted',
+  packing: 'Packing',
+  dispatched: 'Dispatched',
+  delivered: 'Delivered',
+  completed: 'Completed',
+  invoice_uploaded: 'Invoice Uploaded',
+  rejected: 'Rejected',
+  auto_cancelled: 'Auto Cancelled',
+};
+
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -109,7 +121,7 @@ export default function Dashboard() {
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={data.statusData} layout="vertical" barSize={16}>
               <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={80} />
+              <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={150} tickFormatter={v => STATUS_LABELS[v] || v} />
               <Tooltip contentStyle={{ borderRadius: 10, border: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', fontSize: 13 }} />
               <Bar dataKey="value" name="Orders" radius={[0, 6, 6, 0]}>
                 {data.statusData.map((entry, i) => (

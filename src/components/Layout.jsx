@@ -3,7 +3,7 @@ import { useAuth } from '../AuthContext';
 import {
   LayoutDashboard, Users, ShoppingBag, CheckSquare,
   FlaskConical, Package, Tag, Activity,
-  DollarSign, LogOut, Menu, X
+  DollarSign, TrendingUp, LogOut, Menu, X
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -15,8 +15,9 @@ const NAV = [
   { to: '/products',      icon: FlaskConical,    label: 'Products' },
   { to: '/listings',      icon: Package,         label: 'Listings' },
   { to: '/categories',    icon: Tag,             label: 'Categories' },
-  { to: '/activity-logs', icon: Activity,        label: 'Activity Logs' },
-  { to: '/commission',    icon: DollarSign,      label: 'Commission' },
+  { to: '/activity-logs', icon: Activity,    label: 'Activity Logs' },
+  { to: '/analytics',     icon: TrendingUp,  label: 'Analytics' },
+  { to: '/commission',    icon: DollarSign,  label: 'Commission' },
 ];
 
 export default function Layout({ children }) {
